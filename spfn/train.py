@@ -17,6 +17,11 @@ import os
 import json
 import argparse
 
+from numba import cuda
+
+from tqdm import tqdm
+import time
+
 if __name__ == '__main__':
     tf.set_random_seed(1234)
     np.random.seed(1234)
@@ -28,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', action='store_true', help='Run network in test time')
     parser.add_argument('--test_pc_in', type=str)
     parser.add_argument('--test_h5_out', type=str)
+    parser.add_argument('--test_folder', type=str)
     args = parser.parse_args()
 
     conf = NetworkConfig(args.config_file)
@@ -67,7 +73,22 @@ if __name__ == '__main__':
 
         print('Loading data...')
         if is_testing:
-            if args.test_pc_in is not None:
+            if args.test_folder is not None:
+                files = [os.path.join(args.test_folder, f) for f in os.listdir(args.test_folder) if f[-4:] == '.xyz']
+                out_dir = 'spfn_result'
+                if not os.path.isdir(out_dir):
+                    os.mkdir(out_dir)
+                for f in tqdm(files):
+                    out_file = f.split('/')[-1][:-4] + '.h5'
+                    try:
+                        net.simple_predict_and_save(
+                            sess,
+                            pc=np.genfromtxt(f, delimiter=' ', dtype=float)[:, :3],
+                            pred_h5_file=os.path.join(out_dir, out_file)
+                        ) 
+                    except:
+                        pass
+            elif args.test_pc_in is not None:
                 # single point cloud testing
                 assert args.test_h5_out is not None
                 net.simple_predict_and_save(

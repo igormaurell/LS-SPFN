@@ -7,4 +7,5 @@ traceparts_data
 *.so
 *.zip
 *.log
+*.vscode*
 __pycache__
