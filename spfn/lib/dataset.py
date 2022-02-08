@@ -7,6 +7,25 @@ import h5py
 import pickle
 import pandas
 import re
+from numba import njit
+
+@njit
+def intersection(a, b):
+    i = 0
+    j = 0
+    k = 0
+    intersect = np.empty_like(a)
+    while i< a.size and j < b.size:
+            if a[i]==b[j]: # the 99% case
+                intersect[k]=a[i]
+                k+=1
+                i+=1
+                j+=1
+            elif a[i]<b[j]:
+                i+=1
+            else : 
+                j+=1
+    return intersect[:k] 
 
 def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, check_only=False, shuffle=True):
     ''' 
@@ -40,13 +59,13 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
 
     perm = np.random.permutation(indices.shape[0])
     indices = indices[perm[:128000]]
+    indices.sort()
 
     print(indices.shape)
 
-    P = P[indices]
-    np.savetxt('test.xyz', P)
-    normal_gt = normal_gt[indices]
-    I_gt = I_gt[indices]
+    P_crop = P[indices]
+    normal_gt_crop = normal_gt[indices]
+    I_gt_crop = I_gt[indices]
 
     P_gt = []
 
@@ -70,16 +89,29 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
             return None
 
     instances = []
+
     for i in range(n_instances):
         g = f[soup_id_to_key[i]]
-        #first change point, use of "gt_indices"
-        P_gt_cur = g['gt_points'][()]
-        P_gt.append(P_gt_cur)
-        meta = pickle.loads(g.attrs['meta'])
-        # primitive = fitter_factory.create_primitive_from_dict(meta)
-        # if primitive is None:
-        #     return None
-        # instances.append(primitive)
+        P_gt_ind_cur = g['gt_indices'][()]
+        P_gt_ind_cur.sort()
+        P_gt_keep_ind_cur = intersection(P_gt_ind_cur, indices)
+        
+        if len(P_gt_keep_ind_cur) > 0:
+            P_gt_cur = P[P_gt_ind_cur]
+            volume_cur = np.linalg.norm((np.max(P_gt_cur, 0) - np.min(P_gt_cur, 0)), ord=2)
+            P_gt_cur_crop = P[P_gt_keep_ind_cur]
+            volume_cur_crop = np.linalg.norm((np.max(P_gt_cur_crop, 0) - np.min(P_gt_cur_crop, 0)), ord=2)
+            volume_ratio = volume_cur_crop/volume_cur
+
+            if volume_ratio > 0.1:
+                P_gt.append(P_gt_cur)
+                meta = pickle.loads(g.attrs['meta'])
+                primitive = fitter_factory.create_primitive_from_dict(meta)
+                if primitive is None:
+                    return None
+                instances.append(primitive)
+
+    n_instances = len(instances)
 
     if n_instances > n_max_instances:
         print('n_instances {} > n_max_instances {}'.format(n_instances, n_max_instances))
