@@ -17,6 +17,14 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
     normal_gt = f['gt_normals'][()] # Nx3
     I_gt = f['gt_labels'][()] # N
 
+    # middle_point = P[random.randint(P.shp[0])]
+    
+    # size = np.array([4., 4., np.inf])
+    # ll = middle_point - size/2
+    # ur = middle_point + size/2
+
+    # inidx = np.all(np.logical_and(P >= ll, P <= ur), axis=1)
+
     P_gt = []
 
     # next check if soup_ids are consecutive
@@ -41,6 +49,7 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
     instances = []
     for i in range(n_instances):
         g = f[soup_id_to_key[i]]
+        #first change point, use of "gt_indices"
         P_gt_cur = g['gt_points'][()]
         P_gt.append(P_gt_cur)
         meta = pickle.loads(g.attrs['meta'])
