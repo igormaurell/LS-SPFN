@@ -1,4 +1,4 @@
-import fitter_factory
+# import fitter_factory
 
 import numpy as np
 import random
@@ -12,18 +12,41 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
     ''' 
         f will be a h5py group-like object
     '''
+    print(f, n_max_instances)
 
     P = f['noisy_points'][()] if noisy else f['gt_points'][()] # Nx3
     normal_gt = f['gt_normals'][()] # Nx3
     I_gt = f['gt_labels'][()] # N
 
-    # middle_point = P[random.randint(P.shp[0])]
-    
-    # size = np.array([4., 4., np.inf])
-    # ll = middle_point - size/2
-    # ur = middle_point + size/2
+    print(np.max(P, 0), np.min(P, 0))
 
-    # inidx = np.all(np.logical_and(P >= ll, P <= ur), axis=1)
+    print(P.shape)
+
+    middle_point = P[random.randint(0, P.shape[0])]
+    
+    print(middle_point)
+
+    size = np.array([2000., 2000., np.inf])
+    ll = middle_point - size/2
+    ur = middle_point + size/2
+
+    print(ll, ur)
+
+    inidx = np.all(np.logical_and(P >= ll, P <= ur), axis=1)
+    indices = np.arange(0, inidx.shape[0], 1, dtype=int)
+    indices = indices[inidx]
+
+    print(indices.shape)
+
+    perm = np.random.permutation(indices.shape[0])
+    indices = indices[perm[:128000]]
+
+    print(indices.shape)
+
+    P = P[indices]
+    np.savetxt('test.xyz', P)
+    normal_gt = normal_gt[indices]
+    I_gt = I_gt[indices]
 
     P_gt = []
 
@@ -53,10 +76,10 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
         P_gt_cur = g['gt_points'][()]
         P_gt.append(P_gt_cur)
         meta = pickle.loads(g.attrs['meta'])
-        primitive = fitter_factory.create_primitive_from_dict(meta)
-        if primitive is None:
-            return None
-        instances.append(primitive)
+        # primitive = fitter_factory.create_primitive_from_dict(meta)
+        # if primitive is None:
+        #     return None
+        # instances.append(primitive)
 
     if n_instances > n_max_instances:
         print('n_instances {} > n_max_instances {}'.format(n_instances, n_max_instances))
@@ -69,8 +92,11 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
     if check_only:
         return True
 
-    T_gt = [fitter_factory.primitive_name_to_id(primitive.get_primitive_name()) for primitive in instances]
-    T_gt.extend([0 for _ in range(n_max_instances - n_instances)]) # K
+    return True
+
+    T_gt = np.array([])
+    # T_gt = [fitter_factory.primitive_name_to_id(primitive.get_primitive_name()) for primitive in instances]
+    # T_gt.extend([0 for _ in range(n_max_instances - n_instances)]) # K
 
     n_total_points = P.shape[0]
     n_gt_points_per_instance = P_gt[0].shape[0]
@@ -96,8 +122,8 @@ def create_unit_data_from_hdf5(f, n_max_instances, noisy, fixed_order=False, che
     }
 
     # Next put in primitive parameters
-    for fitter_cls in fitter_factory.all_fitter_classes:
-        result.update(fitter_cls.extract_parameter_data_as_dict(instances, n_max_instances))
+    # for fitter_cls in fitter_factory.all_fitter_classes:
+    #     result.update(fitter_cls.extract_parameter_data_as_dict(instances, n_max_instances))
 
     return result
 

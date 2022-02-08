@@ -10,7 +10,7 @@ from utils.tf_numerical_safe import sqrt_safe
 from fitters.adaptors import *
 from primitives import Sphere
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 
 class SphereFitter:
